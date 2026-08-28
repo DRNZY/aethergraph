@@ -1,7 +1,14 @@
 import { transform } from 'sucrase';
-import { exportToJsonCanvas, importFromJsonCanvas, createInitialSeedNodes } from '../src/services/canvasIo';
+import { exportToJsonCanvas, importFromJsonCanvas, createInitialSeedNodes, createExamplePipeline } from '../src/services/canvasIo';
 
-console.log('--- TEST 1: Sucrase Real TypeScript Transpilation ---');
+console.log('--- TEST 1: Clean Slate Fresh Install Verification ---');
+const fresh = createInitialSeedNodes();
+if (fresh.nodes.length !== 0 || fresh.edges.length !== 0) {
+  throw new Error(`Fresh install seed is not empty! nodes: ${fresh.nodes.length}, edges: ${fresh.edges.length}`);
+}
+console.log('✓ createInitialSeedNodes() returns 0 nodes and 0 edges (pure empty canvas).');
+
+console.log('\n--- TEST 2: Sucrase Real TypeScript Transpilation ---');
 const tsCode = `
 interface SignalPipeline {
   frequency: number;
@@ -24,16 +31,16 @@ if (result.frequency !== 528 || result.waveform !== 'triangle') {
   throw new Error('TS Execution test failed!');
 }
 
-console.log('\n--- TEST 2: JSON Canvas Lossless Round-Trip Fidelity ---');
-const initial = createInitialSeedNodes();
-console.log(`Exporting ${initial.nodes.length} nodes to JSON Canvas...`);
-const exported = exportToJsonCanvas(initial.nodes, initial.edges);
+console.log('\n--- TEST 3: JSON Canvas Lossless Round-Trip Fidelity ---');
+const example = createExamplePipeline();
+console.log(`Exporting ${example.nodes.length} nodes to JSON Canvas...`);
+const exported = exportToJsonCanvas(example.nodes, example.edges);
 
 console.log(`Re-importing from JSON Canvas...`);
 const imported = importFromJsonCanvas(exported);
 
-if (imported.nodes.length !== initial.nodes.length) {
-  throw new Error(`Node count mismatch: expected ${initial.nodes.length}, got ${imported.nodes.length}`);
+if (imported.nodes.length !== example.nodes.length) {
+  throw new Error(`Node count mismatch: expected ${example.nodes.length}, got ${imported.nodes.length}`);
 }
 
 const codeNode = imported.nodes.find(n => n.type === 'code');

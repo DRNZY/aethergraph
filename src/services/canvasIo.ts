@@ -143,8 +143,11 @@ export function importFromJsonCanvas(data: JsonCanvasData): { nodes: CanvasNode[
 }
 
 export function createInitialSeedNodes(): { nodes: CanvasNode[]; edges: CanvasEdge[] } {
+  return { nodes: [], edges: [] };
+}
+
+export function createExamplePipeline(): { nodes: CanvasNode[]; edges: CanvasEdge[] } {
   const nodes: CanvasNode[] = [
-    // 1. Reactive TypeScript Code Node (Real TS types + returns signal data)
     {
       id: 'node_code_signal',
       type: 'code',
@@ -178,8 +181,6 @@ return pipeline;`,
         executionTimeMs: 0.8,
       },
     },
-
-    // 2. Real Web Audio Oscillator Node (Reacts to frequency from Code Node)
     {
       id: 'node_audio_synth',
       type: 'audio',
@@ -196,8 +197,6 @@ return pipeline;`,
         lastReceivedInput: { frequency: 528, waveform: 'triangle' },
       },
     },
-
-    // 3. Real Code-128 Barcode Synthesizer (Reacts to barcode string from Code Node)
     {
       id: 'node_barcode_gen',
       type: 'metric',
@@ -215,8 +214,6 @@ return pipeline;`,
         lastReceivedInput: { barcode: '8710400012345' },
       },
     },
-
-    // 4. Interactive Obsidian Note Scratchpad
     {
       id: 'node_scratchpad',
       type: 'markdown',

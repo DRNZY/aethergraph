@@ -11,6 +11,8 @@ import {
   Maximize2,
   FolderSync,
   Upload,
+  Camera,
+  RotateCcw,
   Compass,
 } from 'lucide-react';
 import { NodeType, JsonCanvasData } from '../types/canvas';
@@ -21,6 +23,9 @@ interface Props {
   onAutoLayout: () => void;
   onExportObsidian: () => void;
   onImportObsidian: (data: JsonCanvasData) => void;
+  onExportPng: () => void;
+  onLoadTemplate: () => void;
+  onClearCanvas: () => void;
   onResetZoom: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -34,6 +39,9 @@ export const Toolbar: React.FC<Props> = ({
   onAutoLayout,
   onExportObsidian,
   onImportObsidian,
+  onExportPng,
+  onLoadTemplate,
+  onClearCanvas,
   onResetZoom,
   onZoomIn,
   onZoomOut,
@@ -83,47 +91,63 @@ export const Toolbar: React.FC<Props> = ({
             <div className="flex items-center gap-2">
               <h1 className="text-xs font-semibold tracking-tight text-white font-sans">AetherGraph</h1>
               <span className="bg-white/[0.08] text-zinc-300 text-[9px] font-mono px-1.5 py-0.2 rounded border border-white/[0.04]">
-                Pure Spatial Studio
+                Spatial Studio
               </span>
             </div>
           </div>
         </div>
 
         {/* Stats & Actions */}
-        <div className="flex items-center gap-2.5">
-          <div className="hidden md:flex items-center gap-2.5 text-[10px] font-mono bg-black/40 px-3 py-1 rounded-xl border border-white/[0.05]">
-            <span className="text-zinc-400">
-              Nodes <strong className="text-white">{nodeCount}</strong>
-            </span>
-            <span className="text-zinc-600">•</span>
-            <span className="text-zinc-400">
-              Wires <strong className="text-white">{edgeCount}</strong>
-            </span>
-            <span className="text-zinc-600">•</span>
-            <span className="text-zinc-400">
-              Zoom <strong className="text-zinc-200">{Math.round(zoom * 100)}%</strong>
-            </span>
-          </div>
+        <div className="flex items-center gap-2">
+          {nodeCount > 0 && (
+            <div className="hidden lg:flex items-center gap-2.5 text-[10px] font-mono bg-black/40 px-3 py-1 rounded-xl border border-white/[0.05]">
+              <span className="text-zinc-400">
+                Nodes <strong className="text-white">{nodeCount}</strong>
+              </span>
+              <span className="text-zinc-600">•</span>
+              <span className="text-zinc-400">
+                Wires <strong className="text-white">{edgeCount}</strong>
+              </span>
+              <span className="text-zinc-600">•</span>
+              <span className="text-zinc-400">
+                Zoom <strong className="text-zinc-200">{Math.round(zoom * 100)}%</strong>
+              </span>
+            </div>
+          )}
 
-          <button
-            onClick={() => {
-              playSpatialClick(1000, 0.05);
-              onAutoLayout();
-            }}
-            className="flex items-center gap-1.5 bg-white/[0.08] hover:bg-white/15 text-zinc-200 hover:text-white text-xs font-medium px-3 py-1.5 rounded-xl border border-white/[0.06] transition-all active:scale-[0.97]"
-            title="Auto-organize with Force-Directed simulation"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-zinc-400" />
-            <span className="hidden sm:inline">Force Layout</span>
-          </button>
+          {nodeCount > 1 && (
+            <button
+              onClick={() => {
+                playSpatialClick(1000, 0.05);
+                onAutoLayout();
+              }}
+              className="hidden sm:flex items-center gap-1.5 bg-white/[0.08] hover:bg-white/15 text-zinc-200 hover:text-white text-xs font-medium px-2.5 py-1.5 rounded-xl border border-white/[0.06] transition-all active:scale-[0.97]"
+              title="Auto-organize with Force-Directed simulation"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-zinc-400" />
+              <span>Layout</span>
+            </button>
+          )}
 
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 bg-white/[0.08] hover:bg-white/15 text-zinc-200 hover:text-white text-xs font-medium px-3 py-1.5 rounded-xl border border-white/[0.06] transition-all active:scale-[0.97]"
+            className="flex items-center gap-1.5 bg-white/[0.08] hover:bg-white/15 text-zinc-200 hover:text-white text-xs font-medium px-2.5 py-1.5 rounded-xl border border-white/[0.06] transition-all active:scale-[0.97]"
             title="Import Obsidian .canvas file"
           >
             <Upload className="w-3.5 h-3.5 text-zinc-400" />
             <span className="hidden sm:inline">Import .canvas</span>
+          </button>
+
+          <button
+            onClick={() => {
+              playSpatialClick(800, 0.05);
+              onExportPng();
+            }}
+            className="flex items-center gap-1.5 bg-white/[0.08] hover:bg-white/15 text-zinc-200 hover:text-white text-xs font-medium px-2.5 py-1.5 rounded-xl border border-white/[0.06] transition-all active:scale-[0.97]"
+            title="Export high-res PNG image"
+          >
+            <Camera className="w-3.5 h-3.5 text-zinc-400" />
+            <span className="hidden sm:inline">Export PNG</span>
           </button>
 
           <button
@@ -137,6 +161,16 @@ export const Toolbar: React.FC<Props> = ({
             <FolderSync className="w-3.5 h-3.5" />
             <span>Export .canvas</span>
           </button>
+
+          {nodeCount > 0 && (
+            <button
+              onClick={onClearCanvas}
+              className="p-1.5 rounded-xl hover:bg-red-500/10 text-zinc-500 hover:text-red-400 border border-transparent hover:border-red-500/20 transition-all active:scale-95"
+              title="Clear Canvas"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </header>
 
@@ -155,7 +189,7 @@ export const Toolbar: React.FC<Props> = ({
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-white/[0.08] text-zinc-300 hover:text-white text-xs font-medium transition-all active:scale-[0.97]"
         >
           <Code className="w-3.5 h-3.5 text-zinc-400" />
-          <span>Code REPL</span>
+          <span>TypeScript REPL</span>
         </button>
 
         <button
