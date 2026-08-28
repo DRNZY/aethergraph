@@ -8,12 +8,15 @@ import { exportToJsonCanvas, importFromJsonCanvas, createInitialSeedNodes, creat
 import { playSpatialClick, playConnectChord } from './services/soundSynth';
 import { toPng } from 'html-to-image';
 import { Compass, FileText, Code2, Sparkles, Upload, ArrowDown, X } from 'lucide-react';
+import { AutoTour } from './components/AutoTour';
 
 const STORAGE_NODES_KEY = 'aethergraph_nodes_v1';
 const STORAGE_EDGES_KEY = 'aethergraph_edges_v1';
 const STORAGE_VIEWPORT_KEY = 'aethergraph_viewport_v1';
 
 export default function App() {
+  const [isAutoTourActive, setIsAutoTourActive] = useState(false);
+
   // 1. Session Persistence from localStorage
   const [nodes, setNodes] = useState<CanvasNode[]>(() => {
     try {
@@ -50,6 +53,23 @@ export default function App() {
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(true);
+
+  // Keyboard shortcut listener for Auto Tour ('D')
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeTag = (document.activeElement?.tagName || '').toLowerCase();
+      if (activeTag === 'input' || activeTag === 'textarea') return;
+
+      if ((e.key === 'd' || e.key === 'D') && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setIsAutoTourActive((prev) => !prev);
+      } else if (e.key === 'Escape') {
+        setIsAutoTourActive(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Save session to localStorage
   useEffect(() => {
@@ -333,6 +353,7 @@ export default function App() {
         onExportPng={handleExportPng}
         onLoadTemplate={handleLoadStarterTemplate}
         onClearCanvas={handleClearCanvas}
+        onStartAutoTour={() => setIsAutoTourActive(true)}
         onResetZoom={() => setViewport((v) => ({ ...v, zoom: 1.0 }))}
         onZoomIn={() => setViewport((v) => ({ ...v, zoom: Math.min(2.5, v.zoom + 0.15) }))}
         onZoomOut={() => setViewport((v) => ({ ...v, zoom: Math.max(0.25, v.zoom - 0.15) }))}
@@ -421,6 +442,16 @@ export default function App() {
           <span>{toastMessage}</span>
         </div>
       )}
+
+      {/* Automated Guided Tour (Trigger with 'Auto Tour' button or key 'D') */}
+      <AutoTour
+        isActive={isAutoTourActive}
+        onStop={() => setIsAutoTourActive(false)}
+        onLoadTemplate={handleLoadStarterTemplate}
+        onExecuteCode={handleExecuteCode}
+        onExportObsidian={handleExportObsidian}
+        onUpdateViewport={setViewport}
+      />
     </div>
   );
 }

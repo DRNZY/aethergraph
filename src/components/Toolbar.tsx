@@ -26,6 +26,7 @@ interface Props {
   onExportPng: () => void;
   onLoadTemplate: () => void;
   onClearCanvas: () => void;
+  onStartAutoTour: () => void;
   onResetZoom: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -42,6 +43,7 @@ export const Toolbar: React.FC<Props> = ({
   onExportPng,
   onLoadTemplate,
   onClearCanvas,
+  onStartAutoTour,
   onResetZoom,
   onZoomIn,
   onZoomOut,
@@ -128,6 +130,18 @@ export const Toolbar: React.FC<Props> = ({
               <span>Layout</span>
             </button>
           )}
+
+          <button
+            onClick={() => {
+              playSpatialClick(1200, 0.05);
+              onStartAutoTour();
+            }}
+            className="flex items-center gap-1.5 bg-[#30D158]/15 hover:bg-[#30D158]/25 text-[#30D158] text-xs font-semibold px-3 py-1.5 rounded-xl border border-[#30D158]/30 transition-all active:scale-[0.97]"
+            title="Start automated 15s recording tour (or press D)"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-[#30D158] animate-ping" />
+            <span>Auto Tour</span>
+          </button>
 
           <button
             onClick={() => fileInputRef.current?.click()}
