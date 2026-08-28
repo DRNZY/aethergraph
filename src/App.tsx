@@ -5,7 +5,7 @@ import { Toolbar } from './components/Toolbar';
 import { MiniMap } from './components/MiniMap';
 import { applyForceDirectedLayout } from './services/forceLayout';
 import { exportToJsonCanvas, importFromJsonCanvas, createInitialSeedNodes } from './services/canvasIo';
-import { playSpatialClick } from './services/soundSynth';
+import { playSpatialClick, playConnectChord } from './services/soundSynth';
 
 export default function App() {
   const [initialData] = useState(() => createInitialSeedNodes());
@@ -52,6 +52,71 @@ export default function App() {
     showToast('Wire disconnected');
   }, []);
 
+  // Real Reactive Graph Pipeline: Code Output -> Wire -> Downstream Node
+  const handleExecuteCode = useCallback(
+    (sourceId: string, result: any) => {
+      const outgoingEdges = edges.filter((e) => e.fromNode === sourceId);
+      if (outgoingEdges.length === 0) return;
+
+      playConnectChord();
+
+      setNodes((prevNodes) => {
+        return prevNodes.map((targetNode) => {
+          const edge = outgoingEdges.find((e) => e.toNode === targetNode.id);
+          if (!edge) return targetNode;
+
+          const updatedData = { ...targetNode.data, lastReceivedInput: result };
+
+          // 1. Audio Node: reactive frequency / waveform update
+          if (targetNode.type === 'audio') {
+            if (typeof result === 'number') {
+              updatedData.audioFreq = Math.min(Math.max(20, Math.round(result)), 20000);
+            } else if (typeof result === 'object' && result !== null) {
+              if (result.frequency || result.freq) {
+                updatedData.audioFreq = Math.min(Math.max(20, Math.round(result.frequency || result.freq)), 20000);
+              }
+              if (result.waveform || result.wave) {
+                updatedData.audioWaveType = result.waveform || result.wave;
+              }
+              if (result.volume !== undefined) {
+                updatedData.volume = result.volume;
+              }
+            }
+          }
+
+          // 2. Metric / Barcode Node: reactive barcode update
+          if (targetNode.type === 'metric') {
+            let barcodeVal = '';
+            if (typeof result === 'string' || typeof result === 'number') {
+              barcodeVal = String(result);
+            } else if (typeof result === 'object' && result !== null) {
+              barcodeVal = String(result.barcode || result.value || result.code || result.id || JSON.stringify(result));
+            }
+            if (barcodeVal) {
+              updatedData.barcodeValue = barcodeVal;
+              updatedData.metricValue = barcodeVal;
+            }
+          }
+
+          // 3. Markdown Node: data append
+          if (targetNode.type === 'markdown' && typeof result === 'object') {
+            if (result.markdown || result.text) {
+              updatedData.text = result.markdown || result.text;
+            }
+          }
+
+          return {
+            ...targetNode,
+            data: updatedData,
+          };
+        });
+      });
+
+      showToast(`⚡ Emitted data payload along ${outgoingEdges.length} connected wire(s)`);
+    },
+    [edges]
+  );
+
   const handleAddNode = (type: NodeType) => {
     playSpatialClick(1100, 0.04);
     const canvasCenterX = (-viewport.x + window.innerWidth / 2) / viewport.zoom;
@@ -72,7 +137,7 @@ export default function App() {
           height: 260,
           color: 'neutral',
           data: {
-            text: '### Scratchpad\n- [ ] Type your note here\n- Connect wires to route data',
+            text: '### Scratchpad\n- [ ] Type your note here\n- Connect wires to route live data',
           },
         };
         break;
@@ -80,15 +145,15 @@ export default function App() {
         newNode = {
           id,
           type: 'code',
-          title: 'JavaScript REPL',
+          title: 'TypeScript REPL',
           x: Math.round(canvasCenterX - 190),
           y: Math.round(canvasCenterY - 160),
-          width: 400,
-          height: 340,
+          width: 420,
+          height: 360,
           color: 'neutral',
           data: {
             language: 'typescript',
-            code: '// Live REPL Runner\nconst r = Math.random() * 100;\nreturn { radius: r, area: Math.PI * r * r };',
+            code: `// Live TypeScript Code Execution\ninterface AudioSignal {\n  frequency: number;\n  waveform: 'sine' | 'square' | 'sawtooth' | 'triangle';\n}\n\n// Compute 528Hz Solfeggio Tone & Route to Connected Audio Node\nconst signal: AudioSignal = {\n  frequency: 528,\n  waveform: 'triangle'\n};\n\nreturn signal;`,
           },
         };
         break;
@@ -123,6 +188,22 @@ export default function App() {
             metricValue: '262094810293',
             barcodeType: 'CODE_128',
             barcodeValue: '262094810293',
+          },
+        };
+        break;
+      case 'agent':
+        newNode = {
+          id,
+          type: 'agent',
+          title: 'Agent Worker',
+          x: Math.round(canvasCenterX - 200),
+          y: Math.round(canvasCenterY - 180),
+          width: 400,
+          height: 380,
+          color: 'neutral',
+          data: {
+            agentPrompt: 'Analyze graph layout complexity and optimize Hooke spring constants',
+            isScriptedDemo: true,
           },
         };
         break;
@@ -165,7 +246,7 @@ export default function App() {
     a.click();
     URL.revokeObjectURL(url);
 
-    showToast('Exported AetherGraph_Export.canvas');
+    showToast('Exported AetherGraph_Export.canvas (with round-trip metadata)');
   };
 
   const handleImportObsidian = (json: JsonCanvasData) => {
@@ -202,6 +283,7 @@ export default function App() {
         onAddEdge={handleAddEdge}
         onDeleteEdge={handleDeleteEdge}
         onSelectNode={() => {}}
+        onExecuteCode={handleExecuteCode}
       />
 
       {/* MiniMap */}

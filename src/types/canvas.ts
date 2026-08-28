@@ -7,8 +7,8 @@ export type EdgeSide = 'top' | 'right' | 'bottom' | 'left';
 export interface AgentStep {
   id: string;
   timestamp: string;
-  agent: 'Antigravity' | 'Claude Code' | 'OpenCode' | 'Codex';
-  tool: 'view_file' | 'replace_file_content' | 'run_command' | 'write_to_file' | 'think';
+  agent: string;
+  tool: string;
   target: string;
   status: 'running' | 'completed' | 'failed';
   details?: string;
@@ -34,8 +34,9 @@ export interface CanvasNode {
     text?: string;
     // Code
     code?: string;
-    language?: 'typescript' | 'javascript' | 'python' | 'rust';
+    language?: 'typescript' | 'javascript';
     output?: string;
+    rawReturnValue?: any;
     executionTimeMs?: number;
     isRunning?: boolean;
     // Audio
@@ -49,13 +50,18 @@ export interface CanvasNode {
     metricChange?: string;
     barcodeType?: 'EAN_13' | 'CODE_128' | 'QR';
     barcodeValue?: string;
+    // Reactive Data Flow Payload
+    lastReceivedInput?: any;
+    lastReceivedTime?: string;
     // Agent Node
-    agentName?: 'Antigravity' | 'Claude Code' | 'OpenCode' | 'Codex';
+    agentName?: string;
     agentModel?: string;
-    agentStatus?: 'active' | 'idle' | 'awaiting_approval' | 'thinking';
-    agentRole?: string;
+    agentStatus?: 'active' | 'idle' | 'awaiting_key' | 'streaming';
     agentActiveTask?: string;
+    agentPrompt?: string;
+    agentResponse?: string;
     agentSteps?: AgentStep[];
+    isScriptedDemo?: boolean;
     tokenSpeed?: number;
     // Group
     groupLabel?: string;
@@ -73,6 +79,7 @@ export interface CanvasEdge {
   label?: string;
   color?: NodeColor;
   animated?: boolean;
+  lastDataPayload?: any;
 }
 
 export interface CanvasViewport {

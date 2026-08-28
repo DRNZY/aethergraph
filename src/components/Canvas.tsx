@@ -18,6 +18,7 @@ interface Props {
   onAddEdge: (edge: CanvasEdge) => void;
   onDeleteEdge: (id: string) => void;
   onSelectNode: (id: string | null) => void;
+  onExecuteCode?: (sourceId: string, result: any) => void;
 }
 
 export const Canvas: React.FC<Props> = ({
@@ -30,6 +31,7 @@ export const Canvas: React.FC<Props> = ({
   onAddEdge,
   onDeleteEdge,
   onSelectNode,
+  onExecuteCode,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPanning, setIsPanning] = useState(false);
@@ -340,7 +342,12 @@ export const Canvas: React.FC<Props> = ({
                 <MarkdownNode node={node} onUpdate={onUpdateNode} onDelete={onDeleteNode} />
               )}
               {node.type === 'code' && (
-                <CodeNode node={node} onUpdate={onUpdateNode} onDelete={onDeleteNode} />
+                <CodeNode
+                  node={node}
+                  onUpdate={onUpdateNode}
+                  onDelete={onDeleteNode}
+                  onExecute={onExecuteCode}
+                />
               )}
               {node.type === 'audio' && (
                 <AudioNode node={node} onUpdate={onUpdateNode} onDelete={onDeleteNode} />

@@ -1,5 +1,8 @@
 import { CanvasNode, CanvasEdge, JsonCanvasData, JsonCanvasNode, JsonCanvasEdge } from '../types/canvas';
 
+const META_BLOCK_START = '```aethergraph-meta';
+const META_BLOCK_END = '```';
+
 export function exportToJsonCanvas(nodes: CanvasNode[], edges: CanvasEdge[]): JsonCanvasData {
   const jsonNodes: JsonCanvasNode[] = nodes.map((n) => {
     if (n.type === 'group') {
@@ -15,21 +18,35 @@ export function exportToJsonCanvas(nodes: CanvasNode[], edges: CanvasEdge[]): Js
       };
     }
 
-    let textContent = `## ${n.title}\n\n`;
+    // 1. Human-readable Markdown for native Obsidian Canvas viewers
+    let humanText = `## ${n.title}\n\n`;
     if (n.type === 'markdown') {
-      textContent += n.data.text || '';
+      humanText += n.data.text || '';
     } else if (n.type === 'code') {
-      textContent += `\`\`\`${n.data.language || 'typescript'}\n${n.data.code || ''}\n\`\`\`\n\n**Console Output:**\n\`${n.data.output || 'Not executed'}\``;
+      humanText += `\`\`\`${n.data.language || 'typescript'}\n${n.data.code || ''}\n\`\`\`\n\n**Output:**\n\`${n.data.output || 'Not executed'}\``;
     } else if (n.type === 'audio') {
-      textContent += `🎵 **Web Audio Synth**\n- Freq: ${n.data.audioFreq || 440} Hz\n- Wave: ${n.data.audioWaveType || 'sawtooth'}`;
+      humanText += `🎵 **Web Audio Synth**\n- Frequency: ${n.data.audioFreq || 440} Hz\n- Waveform: ${n.data.audioWaveType || 'sawtooth'}`;
     } else if (n.type === 'metric') {
-      textContent += `📊 **Barcode Generator (Code-128)**: \`${n.data.barcodeValue || ''}\``;
+      humanText += `📊 **Barcode (Code-128)**: \`${n.data.barcodeValue || ''}\``;
+    } else if (n.type === 'agent') {
+      humanText += `🤖 **Agent Worker**: ${n.data.agentPrompt || ''}`;
     }
+
+    // 2. Lossless metadata block enabling 100% round-trip fidelity
+    const serializedMeta = {
+      version: '1.0',
+      type: n.type,
+      title: n.title,
+      color: n.color,
+      data: n.data,
+    };
+
+    const combinedText = `${humanText.trim()}\n\n${META_BLOCK_START}\n${JSON.stringify(serializedMeta, null, 2)}\n${META_BLOCK_END}`;
 
     return {
       id: n.id,
       type: 'text',
-      text: textContent,
+      text: combinedText,
       x: n.x,
       y: n.y,
       width: n.width,
@@ -52,6 +69,8 @@ export function exportToJsonCanvas(nodes: CanvasNode[], edges: CanvasEdge[]): Js
 }
 
 export function importFromJsonCanvas(data: JsonCanvasData): { nodes: CanvasNode[]; edges: CanvasEdge[] } {
+  const META_REGEX = /```aethergraph-meta\s*\n([\s\S]*?)\n```/;
+
   const nodes: CanvasNode[] = data.nodes.map((n) => {
     if (n.type === 'group') {
       return {
@@ -67,17 +86,44 @@ export function importFromJsonCanvas(data: JsonCanvasData): { nodes: CanvasNode[
       };
     }
 
+    const rawText = n.text || '';
+    const match = rawText.match(META_REGEX);
+
+    if (match && match[1]) {
+      try {
+        const meta = JSON.parse(match[1]);
+        return {
+          id: n.id,
+          type: meta.type || 'markdown',
+          title: meta.title || n.label || 'Card',
+          x: n.x,
+          y: n.y,
+          width: n.width,
+          height: n.height,
+          color: meta.color || 'neutral',
+          data: meta.data || {},
+        };
+      } catch (err) {
+        console.warn('Failed to parse aethergraph-meta block', err);
+      }
+    }
+
+    // Clean human markdown fallback for external Obsidian notes
+    const cleanedText = rawText.replace(META_REGEX, '').trim();
+    const titleMatch = cleanedText.match(/^#+\s*(.*)/m);
+    const title = titleMatch ? titleMatch[1] : n.label || 'Note';
+
     return {
       id: n.id,
       type: 'markdown',
-      title: n.text?.split('\n')[0]?.replace(/^#+\s*/, '') || 'Note',
+      title,
       x: n.x,
       y: n.y,
       width: n.width,
       height: n.height,
       color: 'neutral',
       data: {
-        text: n.text || '',
+        text: cleanedText,
       },
     };
   });
@@ -98,103 +144,112 @@ export function importFromJsonCanvas(data: JsonCanvasData): { nodes: CanvasNode[
 
 export function createInitialSeedNodes(): { nodes: CanvasNode[]; edges: CanvasEdge[] } {
   const nodes: CanvasNode[] = [
-    // Node 1: Functional Markdown Scratchpad
+    // 1. Reactive TypeScript Code Node (Real TS types + returns signal data)
     {
-      id: 'node_scratchpad',
-      type: 'markdown',
-      title: 'AetherGraph Quickstart',
-      x: 100,
-      y: 100,
-      width: 380,
-      height: 320,
-      color: 'neutral',
-      data: {
-        text: `### Pure Spatial Functionality\n- [x] Mouse Scroll to Zoom (Figma style)\n- [x] Space + Drag / Middle Click to Pan\n- [x] Live JS/TS Sandbox Execution\n- [x] Web Audio API Synthesizer\n- [x] Bit-Exact Code-128 Barcode Generator\n- [x] JSON Canvas 1.0 Import & Export\n- Connect anchor dots to route data between cards.`,
-      },
-    },
-
-    // Node 2: Real Interactive Code REPL
-    {
-      id: 'node_code_repl',
+      id: 'node_code_signal',
       type: 'code',
-      title: 'JavaScript / TypeScript REPL',
-      x: 520,
-      y: 100,
-      width: 420,
+      title: 'Signal & Frequency Generator',
+      x: 120,
+      y: 120,
+      width: 440,
       height: 380,
       color: 'neutral',
       data: {
         language: 'typescript',
-        code: `// Live Code Execution Sandbox\nconst items = ['Albert Heijn', 'Colruyt', 'Delhaize', 'Jumbo'];\nconst basket = items.map((store, i) => ({\n  store,\n  totalEur: Math.round((28.5 + i * 2.4) * 100) / 100,\n  savingsPct: Math.round((12 - i * 3) * 10) / 10\n}));\n\nreturn { lowestPriceStore: basket[0].store, basket };`,
-        output: `{\n  "lowestPriceStore": "Albert Heijn",\n  "basket": [\n    {\n      "store": "Albert Heijn",\n      "totalEur": 28.5,\n      "savingsPct": 12\n    },\n    {\n      "store": "Colruyt",\n      "totalEur": 30.9,\n      "savingsPct": 9\n    },\n    {\n      "store": "Delhaize",\n      "totalEur": 33.3,\n      "savingsPct": 6\n    },\n    {\n      "store": "Jumbo",\n      "totalEur": 35.7,\n      "savingsPct": 3\n    }\n  ]\n}`,
-        executionTimeMs: 0.6,
+        code: `// Real TypeScript interface transpiled via Sucrase in-browser
+interface SignalPipeline {
+  frequency: number;
+  waveform: 'sine' | 'square' | 'sawtooth' | 'triangle';
+  barcode: string;
+  timestamp: string;
+}
+
+// Compute Solfeggio 528Hz Transformation Tone & Barcode Payload
+const pipeline: SignalPipeline = {
+  frequency: 528,
+  waveform: 'triangle',
+  barcode: '8710400012345',
+  timestamp: new Date().toISOString()
+};
+
+// Return value automatically flows to connected Audio & Barcode nodes!
+return pipeline;`,
+        output: `{\n  "frequency": 528,\n  "waveform": "triangle",\n  "barcode": "8710400012345",\n  "timestamp": "${new Date().toISOString()}"\n}`,
+        executionTimeMs: 0.8,
       },
     },
 
-    // Node 3: Real Algorithmic Barcode Generator
+    // 2. Real Web Audio Oscillator Node (Reacts to frequency from Code Node)
+    {
+      id: 'node_audio_synth',
+      type: 'audio',
+      title: 'Web Audio Oscillator',
+      x: 620,
+      y: 120,
+      width: 380,
+      height: 340,
+      color: 'neutral',
+      data: {
+        audioFreq: 528,
+        audioWaveType: 'triangle',
+        volume: 0.15,
+        lastReceivedInput: { frequency: 528, waveform: 'triangle' },
+      },
+    },
+
+    // 3. Real Code-128 Barcode Synthesizer (Reacts to barcode string from Code Node)
     {
       id: 'node_barcode_gen',
       type: 'metric',
       title: 'Code-128 Barcode Synthesizer',
-      x: 980,
-      y: 100,
-      width: 360,
+      x: 620,
+      y: 500,
+      width: 380,
       height: 280,
       color: 'neutral',
       data: {
         metricLabel: 'Self-Scan Code-128',
-        metricValue: '262094810293',
+        metricValue: '8710400012345',
         barcodeType: 'CODE_128',
-        barcodeValue: '262094810293',
+        barcodeValue: '8710400012345',
+        lastReceivedInput: { barcode: '8710400012345' },
       },
     },
 
-    // Node 4: Real Web Audio Synthesizer
+    // 4. Interactive Obsidian Note Scratchpad
     {
-      id: 'node_audio_synth',
-      type: 'audio',
-      title: 'Web Audio Signal Generator',
-      x: 520,
-      y: 520,
-      width: 420,
-      height: 320,
+      id: 'node_scratchpad',
+      type: 'markdown',
+      title: 'Reactive Visual Computing Guide',
+      x: 120,
+      y: 540,
+      width: 440,
+      height: 280,
       color: 'neutral',
       data: {
-        audioFreq: 440,
-        audioWaveType: 'sawtooth',
-        volume: 0.15,
+        text: `### Real Graph Execution Pipeline\n- **1. Click 'Run' on TypeScript REPL:** Code executes in < 1ms via in-browser \`sucrase\`.\n- **2. Live Wire Emission:** Return value flows across connected wires.\n- **3. Downstream Reactivity:** Audio node updates pitch (528Hz) & Barcode node updates bitstream.\n- **4. Lossless .canvas Round-Trip:** Export to Obsidian and reimport with 100% node type retention.`,
       },
     },
   ];
 
   const edges: CanvasEdge[] = [
     {
-      id: 'edge_scratch_to_code',
-      fromNode: 'node_scratchpad',
+      id: 'edge_code_to_audio',
+      fromNode: 'node_code_signal',
       fromSide: 'right',
-      toNode: 'node_code_repl',
+      toNode: 'node_audio_synth',
       toSide: 'left',
-      label: 'Input Data Hook',
+      label: '528Hz Frequency Stream',
       color: 'neutral',
       animated: true,
     },
     {
       id: 'edge_code_to_barcode',
-      fromNode: 'node_code_repl',
-      fromSide: 'right',
-      toNode: 'node_barcode_gen',
-      toSide: 'left',
-      label: 'Generated Token String',
-      color: 'neutral',
-      animated: true,
-    },
-    {
-      id: 'edge_code_to_audio',
-      fromNode: 'node_code_repl',
+      fromNode: 'node_code_signal',
       fromSide: 'bottom',
-      toNode: 'node_audio_synth',
+      toNode: 'node_barcode_gen',
       toSide: 'top',
-      label: 'Audio Event Trigger',
+      label: 'Barcode Token Payload',
       color: 'neutral',
       animated: true,
     },

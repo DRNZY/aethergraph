@@ -3,15 +3,13 @@ import { CanvasNode, AgentStep } from '../../types/canvas';
 import {
   Bot,
   Terminal,
-  FileCode2,
-  CheckCircle2,
-  Pause,
   Play,
-  RotateCcw,
+  Key,
   Sparkles,
-  GitCommit,
   Clock,
   Zap,
+  CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react';
 import { playSpatialClick } from '../../services/soundSynth';
 
@@ -22,193 +20,306 @@ interface Props {
 }
 
 export const AgentWorkerNode: React.FC<Props> = ({ node, onUpdate }) => {
-  const agentName = node.data.agentName || 'Antigravity';
-  const agentModel = node.data.agentModel || 'Gemini 3.7 Flash';
-  const [isRunning, setIsRunning] = useState(node.data.agentStatus === 'active');
-  const [currentStepIdx, setCurrentStepIdx] = useState(0);
-  const [showDiff, setShowDiff] = useState(true);
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('aethergraph_api_key') || '');
+  const [showKeyModal, setShowKeyModal] = useState(false);
+  const [prompt, setPrompt] = useState(node.data.agentPrompt || 'Optimize spatial tree layout algorithm in TypeScript');
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [responseStream, setResponseStream] = useState(node.data.agentResponse || '');
 
-  const steps: AgentStep[] = node.data.agentSteps || [
+  // Default scripted steps for offline demo demonstration
+  const [demoStepIdx, setDemoStepIdx] = useState(0);
+  const [demoRunning, setDemoRunning] = useState(false);
+
+  const demoSteps: AgentStep[] = node.data.agentSteps || [
     {
       id: 'step_1',
-      timestamp: '21:58:10',
-      agent: agentName,
+      timestamp: '22:15:04',
+      agent: 'AetherGraph Worker',
       tool: 'view_file',
-      target: 'src/services/parser.ts',
+      target: 'src/services/forceLayout.ts',
       status: 'completed',
-      details: 'Analyzing multilingual NLP parsing heuristics and ingredient token bounds',
+      details: 'Inspected Coulomb repulsion matrix and Hooke spring constant bounds',
     },
     {
       id: 'step_2',
-      timestamp: '21:58:14',
-      agent: agentName,
+      timestamp: '22:15:08',
+      agent: 'AetherGraph Worker',
       tool: 'replace_file_content',
-      target: 'src/services/parser.ts:L42-88',
+      target: 'src/services/forceLayout.ts:L40-62',
       status: 'completed',
-      details: 'Refactored unit normalizer with Benelux measurement synonyms',
+      details: 'Optimized spatial grid damping and boundary resistance',
       diff: {
-        file: 'src/services/parser.ts',
-        additions: 14,
-        deletions: 4,
+        file: 'src/services/forceLayout.ts',
+        additions: 6,
+        deletions: 2,
         lines: [
-          { type: 'context', text: 'export function parseIngredient(raw: string): Ingredient {' },
-          { type: 'del', text: '-  const units = ["g", "kg", "ml", "l", "tbsp", "tsp"];' },
-          { type: 'add', text: '+  const units = [...STANDARD_UNITS, ...BENELUX_SYNONYMS];' },
-          { type: 'add', text: '+  const fractions = normalizeCompoundFractions(raw);' },
-          { type: 'context', text: '   return matchQuantityAndUnit(fractions, units);' },
+          { type: 'context', text: '    // 3. Update Positions with Damping' },
+          { type: 'del', text: '-     p.vx *= 0.82;' },
+          { type: 'add', text: '+     p.vx *= damping;' },
+          { type: 'add', text: '+     p.vy *= damping;' },
+          { type: 'context', text: '    });' },
         ],
       },
-    },
-    {
-      id: 'step_3',
-      timestamp: '21:58:19',
-      agent: agentName,
-      tool: 'run_command',
-      target: 'npx tsc --noEmit',
-      status: 'running',
-      details: 'Type checking codebase across 42 modules (0 errors emitted)',
     },
   ];
 
   useEffect(() => {
-    if (!isRunning) return;
+    if (!demoRunning) return;
     const interval = setInterval(() => {
-      setCurrentStepIdx((prev) => (prev + 1) % steps.length);
-    }, 4000);
+      setDemoStepIdx((prev) => (prev + 1) % demoSteps.length);
+    }, 3500);
     return () => clearInterval(interval);
-  }, [isRunning, steps.length]);
+  }, [demoRunning, demoSteps.length]);
 
-  const toggleExecution = () => {
-    playSpatialClick(isRunning ? 600 : 1000, 0.04);
-    setIsRunning(!isRunning);
-    onUpdate(node.id, {
-      data: { ...node.data, agentStatus: isRunning ? 'idle' : 'active' },
-    });
+  const handleSaveKey = (key: string) => {
+    setApiKey(key);
+    localStorage.setItem('aethergraph_api_key', key);
+    setShowKeyModal(false);
   };
 
-  const currentStep = steps[currentStepIdx] || steps[0];
+  // Real LLM API Call (OpenRouter / OpenAI compatible)
+  const handleRunRealAgent = async () => {
+    if (!apiKey) {
+      setShowKeyModal(true);
+      return;
+    }
+
+    playSpatialClick(1100, 0.04);
+    setIsStreaming(true);
+    setResponseStream('');
+
+    try {
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'http://localhost:5180',
+          'X-Title': 'AetherGraph',
+        },
+        body: JSON.stringify({
+          model: 'meta-llama/llama-3.3-70b-instruct',
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are an autonomous coding agent executing inside AetherGraph. Return concise, high-density architecture analysis, TypeScript implementations, or tool steps.',
+            },
+            { role: 'user', content: prompt },
+          ],
+          stream: true,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`API returned HTTP ${res.status}`);
+      }
+
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n').filter((l) => l.trim().startsWith('data: '));
+
+          for (const line of lines) {
+            const dataStr = line.replace(/^data: /, '').trim();
+            if (dataStr === '[DONE]') break;
+            try {
+              const parsed = JSON.parse(dataStr);
+              const token = parsed.choices?.[0]?.delta?.content || '';
+              fullText += token;
+              setResponseStream(fullText);
+            } catch (_) {}
+          }
+        }
+      }
+
+      onUpdate(node.id, {
+        data: {
+          ...node.data,
+          agentPrompt: prompt,
+          agentResponse: fullText,
+          agentStatus: 'idle',
+        },
+      });
+    } catch (err: any) {
+      setResponseStream(`Execution Error: ${err.message}. Please check API key.`);
+    } finally {
+      setIsStreaming(false);
+    }
+  };
+
+  const currentStep = demoSteps[demoStepIdx] || demoSteps[0];
 
   return (
     <div className="flex flex-col h-full bg-[#0C0C0E]/95 backdrop-blur-2xl rounded-2xl border border-white/[0.08] shadow-2xl overflow-hidden group hover:border-white/20 transition-all">
       {/* Apple-grade Header */}
       <div className="flex items-center justify-between px-3.5 py-2.5 bg-black/60 border-b border-white/[0.06] handle cursor-grab active:cursor-grabbing">
         <div className="flex items-center gap-2.5">
-          <div className="relative">
-            <Bot className="w-4 h-4 text-white" />
-            <span
-              className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${
-                isRunning ? 'bg-[#30D158] ring-2 ring-[#30D158]/30 animate-pulse' : 'bg-zinc-600'
-              }`}
-            />
-          </div>
+          <Bot className="w-4 h-4 text-white" />
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-semibold text-white tracking-tight">{agentName}</span>
-              <span className="text-[10px] font-mono text-zinc-400 bg-white/[0.06] px-1.5 py-0.2 rounded border border-white/[0.04]">
-                {agentModel}
-              </span>
+              <span className="text-xs font-semibold text-white tracking-tight">{node.title}</span>
+              {/* Honest Badge */}
+              {!apiKey ? (
+                <span className="text-[9px] font-mono text-[#FF9F0A] bg-[#FF9F0A]/10 px-1.5 py-0.2 rounded border border-[#FF9F0A]/20 flex items-center gap-1">
+                  <AlertTriangle className="w-2.5 h-2.5" />
+                  <span>Scripted Demo</span>
+                </span>
+              ) : (
+                <span className="text-[9px] font-mono text-[#30D158] bg-[#30D158]/10 px-1.5 py-0.2 rounded border border-[#30D158]/20 flex items-center gap-1">
+                  <Zap className="w-2.5 h-2.5" />
+                  <span>Live API Connected</span>
+                </span>
+              )}
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5">
           <button
-            onClick={toggleExecution}
-            className="flex items-center gap-1 bg-white/[0.08] hover:bg-white/15 text-zinc-200 hover:text-white text-[11px] font-medium px-2 py-1 rounded-lg border border-white/[0.06] transition-all active:scale-[0.97]"
-            title={isRunning ? 'Pause Agent' : 'Resume Agent'}
+            onClick={() => setShowKeyModal(true)}
+            className="p-1 rounded-lg hover:bg-white/[0.08] text-zinc-400 hover:text-white transition-colors"
+            title="Configure Live API Key"
           >
-            {isRunning ? (
-              <>
-                <Pause className="w-3 h-3 text-[#FF9F0A]" />
-                <span>Pause</span>
-              </>
-            ) : (
-              <>
-                <Play className="w-3 h-3 text-[#30D158] fill-current" />
-                <span>Resume</span>
-              </>
-            )}
+            <Key className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* Real-Time Agent Stream & Trajectory */}
+      {/* Main Content */}
       <div className="p-3.5 flex-1 flex flex-col justify-between gap-2.5 overflow-hidden font-sans">
-        {/* Active Task / Trajectory Header */}
-        <div className="bg-black/40 rounded-xl p-2.5 border border-white/[0.05]">
-          <div className="flex items-center justify-between text-[10px] font-mono text-zinc-400 mb-1">
-            <span className="flex items-center gap-1">
-              <Zap className="w-3 h-3 text-[#30D158]" />
-              <span>Active Objective</span>
-            </span>
-            <span className="text-zinc-500">Step {currentStepIdx + 1}/{steps.length}</span>
+        {/* Live Prompt Input */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-[10px] font-mono text-zinc-400">
+            <span>Agent Objective Prompt:</span>
+            <button
+              onClick={handleRunRealAgent}
+              disabled={isStreaming}
+              className="flex items-center gap-1 bg-white text-black hover:bg-zinc-200 text-[10px] font-semibold px-2 py-0.5 rounded-md transition-all active:scale-[0.97] disabled:opacity-50"
+            >
+              <Play className="w-2.5 h-2.5 fill-current" />
+              <span>{isStreaming ? 'Streaming...' : 'Run Real Agent'}</span>
+            </button>
           </div>
-          <div className="text-xs font-medium text-zinc-200 truncate">
-            {node.data.agentActiveTask || 'Automating parallel media pipeline & cross-vault sync'}
-          </div>
+          <input
+            type="text"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            className="w-full bg-black/60 text-white font-mono text-[11px] px-2.5 py-1.5 rounded-lg border border-white/10 focus:outline-none focus:border-white/30"
+            placeholder="Type task objective..."
+          />
         </div>
 
-        {/* Live Step Card */}
-        <div className="flex-1 bg-black/60 rounded-xl p-2.5 border border-white/[0.05] flex flex-col justify-between overflow-hidden">
-          <div className="flex items-center justify-between pb-1.5 border-b border-white/[0.04] text-[10px] font-mono">
-            <div className="flex items-center gap-1.5 text-zinc-300">
-              <Terminal className="w-3 h-3 text-[#0A84FF]" />
-              <span className="font-semibold text-white uppercase">{currentStep.tool}</span>
-              <span className="text-zinc-500 truncate max-w-[140px]">{currentStep.target}</span>
+        {/* Real Response or Offline Step Viewer */}
+        <div className="flex-1 bg-black/70 rounded-xl p-2.5 border border-white/[0.05] overflow-y-auto custom-scrollbar flex flex-col justify-between">
+          {responseStream ? (
+            <div className="font-mono text-[10px] text-zinc-200 whitespace-pre-wrap leading-relaxed select-text">
+              {responseStream}
             </div>
-            <span
-              className={`px-1.5 py-0.2 rounded text-[9px] font-semibold uppercase ${
-                currentStep.status === 'running'
-                  ? 'bg-[#30D158]/15 text-[#30D158] border border-[#30D158]/20'
-                  : 'bg-zinc-800 text-zinc-400'
-              }`}
-            >
-              {currentStep.status}
-            </span>
-          </div>
-
-          <div className="py-2 text-[11px] text-zinc-300 leading-relaxed truncate">
-            {currentStep.details}
-          </div>
-
-          {/* Interactive Live Diff Preview */}
-          {currentStep.diff && (
-            <div className="bg-black/90 rounded-lg p-2 font-mono text-[10px] border border-white/[0.04] space-y-0.5 overflow-hidden">
-              <div className="flex items-center justify-between text-[9px] text-zinc-500 pb-1 border-b border-white/[0.04]">
-                <span>{currentStep.diff.file}</span>
-                <span className="text-[#30D158]">+{currentStep.diff.additions}</span>
-                <span className="text-[#FF453A]">-{currentStep.diff.deletions}</span>
-              </div>
-              {currentStep.diff.lines.map((line, lIdx) => (
-                <div
-                  key={lIdx}
-                  className={`truncate px-1 rounded-[2px] ${
-                    line.type === 'add'
-                      ? 'bg-[#30D158]/15 text-[#30D158]'
-                      : line.type === 'del'
-                      ? 'bg-[#FF453A]/15 text-[#FF453A]'
-                      : 'text-zinc-500'
-                  }`}
-                >
-                  {line.text}
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between pb-1 border-b border-white/[0.04] text-[10px] font-mono">
+                <div className="flex items-center gap-1.5 text-zinc-300">
+                  <Terminal className="w-3 h-3 text-[#0A84FF]" />
+                  <span className="font-semibold text-white uppercase">{currentStep.tool}</span>
+                  <span className="text-zinc-500 truncate max-w-[150px]">{currentStep.target}</span>
                 </div>
-              ))}
+                <span className="text-[9px] font-mono text-zinc-500">Example Step</span>
+              </div>
+
+              <div className="text-[11px] text-zinc-400 leading-relaxed">
+                {currentStep.details}
+              </div>
+
+              {currentStep.diff && (
+                <div className="bg-black/90 rounded-lg p-2 font-mono text-[9px] border border-white/[0.04] space-y-0.5">
+                  <div className="flex items-center justify-between text-zinc-500 pb-0.5 border-b border-white/[0.04]">
+                    <span>{currentStep.diff.file}</span>
+                    <span className="text-[#30D158]">+{currentStep.diff.additions}</span>
+                    <span className="text-[#FF453A]">-{currentStep.diff.deletions}</span>
+                  </div>
+                  {currentStep.diff.lines.map((line, lIdx) => (
+                    <div
+                      key={lIdx}
+                      className={`truncate px-1 rounded-[2px] ${
+                        line.type === 'add'
+                          ? 'bg-[#30D158]/15 text-[#30D158]'
+                          : line.type === 'del'
+                          ? 'bg-[#FF453A]/15 text-[#FF453A]'
+                          : 'text-zinc-500'
+                      }`}
+                    >
+                      {line.text}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        {/* Telemetry Footer */}
-        <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500 px-1">
-          <span className="flex items-center gap-1">
-            <Clock className="w-2.5 h-2.5" />
-            <span>Updated {currentStep.timestamp}</span>
-          </span>
-          <span className="flex items-center gap-1 text-zinc-400">
-            <Sparkles className="w-2.5 h-2.5 text-[#0A84FF]" />
-            <span>94 t/s streaming</span>
-          </span>
+        {/* Footer */}
+        <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500">
+          <span>{apiKey ? 'API Key stored locally' : 'No API key (showing scripted example)'}</span>
+          <button
+            onClick={() => setDemoRunning(!demoRunning)}
+            className="text-zinc-400 hover:text-white underline text-[9px]"
+          >
+            {demoRunning ? 'Pause Demo' : 'Cycle Demo'}
+          </button>
         </div>
       </div>
+
+      {/* API Key Modal */}
+      {showKeyModal && (
+        <div className="absolute inset-0 bg-black/90 backdrop-blur-xl p-4 flex flex-col justify-between z-30 animate-fade-in">
+          <div>
+            <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
+              <span className="text-xs font-semibold text-white">Configure Live Agent API</span>
+              <button onClick={() => setShowKeyModal(false)} className="text-zinc-400 hover:text-white text-xs">
+                ✕
+              </button>
+            </div>
+            <p className="text-[11px] text-zinc-400 mt-2 leading-relaxed">
+              Enter your <strong>OpenRouter</strong> or OpenAI API key. Stored exclusively in your browser's local storage; never sent to any external server.
+            </p>
+            <input
+              type="password"
+              defaultValue={apiKey}
+              placeholder="sk-or-v1-..."
+              id="api-key-input"
+              className="w-full mt-3 bg-black/80 text-white font-mono text-xs p-2.5 rounded-xl border border-white/15 focus:outline-none focus:border-white/40"
+            />
+          </div>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              onClick={() => {
+                localStorage.removeItem('aethergraph_api_key');
+                setApiKey('');
+                setShowKeyModal(false);
+              }}
+              className="text-xs text-zinc-400 hover:text-white px-3 py-1.5 rounded-lg"
+            >
+              Clear Key
+            </button>
+            <button
+              onClick={() => {
+                const val = (document.getElementById('api-key-input') as HTMLInputElement)?.value;
+                handleSaveKey(val);
+              }}
+              className="bg-white text-black text-xs font-semibold px-4 py-1.5 rounded-xl hover:bg-zinc-200 transition-colors"
+            >
+              Save Key
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
